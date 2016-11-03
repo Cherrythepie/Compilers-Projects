@@ -1,0 +1,319 @@
+#include <iostream>
+#include <fstream>
+#include <iomanip>
+#include <string>
+#include <cctype>
+
+using namespace std;
+
+int numRows = 0;
+int length = 0;
+int maxLeapingDistance = 0;
+int numLizards = 0;
+
+int x = 0;
+int y = 0;
+
+struct TileType
+{
+	int x, y; // Coords
+
+	int pillarStrength; // duh
+
+	bool lizard;	// is there a lizard on the pillar
+
+	TileType *n, *s, *e, *w, *nw, *ne, *sw, *se;	// Cardinal Directions
+};
+
+void InitializeTile(TileType &tile);
+void BuildMap(TileType &map);
+int  PlayGame(TileType map[][20]);
+bool ifCanEscape(TileType map[][20], int i, int j);	// find out if a lizard can escape to another tile
+
+int main()
+{
+	int numTests = 0;
+	int results[26] = {0};
+	int index = 0;
+
+	cin >> numTests >> ws;
+
+START:
+
+	TileType map[20][20] = {0};
+
+	cin >> numRows >> ws >> maxLeapingDistance >> ws;
+	char dataLine[21] = {0};
+	cin.getline(dataLine, 20);
+
+	length = strlen(dataLine);	// figure out how long the line is / how many columns there are going to be in the 2-D array.
+
+	// build the map
+	for(int j = 0; j < numRows; j++)
+		for(int i = 0; i < length; i++)
+			InitializeTile(map[j][i]);
+
+	// generate the first layer of the map (pillar strengths).
+	for(int j = 0; j < numRows; j++)
+	{
+		for(int i = 0; i < length; i++)
+		{
+			char temp = dataLine[i];
+			map[i][j].pillarStrength = atoi(&temp);
+		}
+
+		cin.getline(dataLine, 20);
+	}
+
+	// generate the second layer of the map (Lizards and Dots).
+	register char lizardOrDot;
+	for(int j = 0; j < numRows; j++)
+	{
+		for(int i = 0; i < length; i++)
+		{
+			cin >> lizardOrDot;
+			if(lizardOrDot == '.')
+				map[i][j].lizard = false;
+			else
+			{
+				map[i][j].lizard = true;
+				numLizards++;
+			}
+		}
+	}
+
+	results[index] = PlayGame(map);
+	index++;
+
+	numTests--;
+
+	if(numTests > 0)
+		goto START;
+
+	for(int i = 0; i <= index; i++)
+	{
+		if(results[i] > 1)
+			cout << "Case #" << i + 1 << ": " << results[i] << "lizards were left behind." << endl;
+		else
+		if(results[i] == 1)
+			cout << "Case #" << i + 1 << ": " << results[i] << "lizard was left behind." << endl;
+		else
+		if(results[i] == 0)
+			cout << "Case #" << i + 1 << ": " << results[i] << "lizards were left behind." << endl;
+	}
+
+	return 0;
+}
+
+void InitializeTile(TileType &tile)
+{
+	tile.x = tile.y = 0;
+
+	tile.pillarStrength = 0;
+
+	tile.lizard = false;
+
+	tile.n = tile.s = tile.e = tile.w = tile.nw = tile.ne = tile.sw = tile.se = NULL;
+}
+
+int PlayGame(TileType map[][20])
+{
+TOP:
+	bool exitPathExists = false;
+
+	// remove the lizards on the top and bottom edge. Also removes the lizards on the inside that can leap out
+	for(int i = 0; i < length; i++)
+	{
+		// top
+		for(int k = 0; k <= maxLeapingDistance - 1; k++)
+			if(map[i][k].lizard == true)
+			{
+				map[i][k].lizard = false;
+				map[i][k].pillarStrength -= 1;
+				numLizards--;	// remove a lizard from the total
+
+				if(map[i][k].pillarStrength > 0)
+					exitPathExists = true;
+			}
+
+		
+
+		// bottom
+		for(int k = 0; k <= maxLeapingDistance - 1; k++)
+			if(map[i][numRows - k].lizard == true)
+			{
+				map[i][numRows - k].lizard = false;
+				map[i][numRows - k].pillarStrength -= 1;
+				numLizards--;	// remove a lizard from the total
+
+				if(map[i][numRows - k].pillarStrength > 0)
+					exitPathExists = true;
+			}
+	}
+
+	// remove the lizards on right and left edge. Also removes the lizards on the inside that can leap out
+	for(int j = 0; j < numRows; j++)
+	{
+		// left
+		for(int k = 0; k <= maxLeapingDistance - 1; k++)
+			if(map[k][j].lizard == true)
+			{
+				map[k][j].lizard = false;
+				map[k][j].pillarStrength -= 1;
+				numLizards--;	// remove a lizard from the total
+
+				if(map[k][j].pillarStrength > 0)
+					exitPathExists = true;
+			}
+		
+		// right
+		for(int k = 0; k <= maxLeapingDistance - 1; k++)
+			if(map[length - k][j].lizard == true)
+			{
+				map[length - k][j].lizard = false;
+				map[length - k][j].pillarStrength -= 1;
+				numLizards--;	// remove a lizard from the total
+
+				if(map[length - k][j].pillarStrength > 0)
+					exitPathExists = true;
+			}
+	}
+
+	if(numLizards == 0)	// if there are no more lizards left
+		return 0;
+
+	/*for(int j = 0; j < numRows; j++)
+		for(int i = 0; i < length; i++)
+			if(map[i][j].pillarStrength > 0)
+				exitPathExists = true;*/
+
+	if(exitPathExists == false)	// if there are no exit paths remaining,
+		return numLizards;		// return the number of lizards remaining.
+	
+	bool oneEscaped = false;
+
+	/*while(!oneEscaped)
+	{*/
+		for(int j = 1; j <= numRows - 1; j++)
+		{
+			for(int i = 1; i <= length - 1; j++)
+			{
+				if(map[i][j].lizard == true)	// if the tile contains a lizard
+				{
+					if(ifCanEscape(map, i, j))	// should make a function that figures out where the lizard can escape to.
+					{
+						map[i][j].lizard = false;
+						map[i][j].pillarStrength -= 1;
+
+						map[x][y].lizard = true;
+
+						oneEscaped = true;
+					}
+				}
+				
+			}
+		}
+	/*}*/
+	
+	if(oneEscaped == true)
+		goto TOP;
+
+	return numLizards;	// or should it be the number of lizards left?
+}
+
+bool ifCanEscape(TileType map[][20], int i, int j)	// find out if a lizard can escape to another tile
+{
+	for(y = j - maxLeapingDistance; y < j + maxLeapingDistance; y++)
+		for(x = i - maxLeapingDistance; x < i + maxLeapingDistance; x++)
+			if(map[x][y].pillarStrength > 0)
+				return true;
+
+	return false;
+}
+
+//void BuildMap(TileType &map)
+//{
+//	char numCol[22] = {0};
+//	cin >> numCol;
+//	int numColumns = strlen(numCol);
+//
+//	for(int i = 0; i < numRows; i++)
+//	{
+//
+//	}
+//}
+//
+//void BuildMapSkeleton(MapType *Map)	// Done
+//{
+//	TileType MapTilesStart = *Map->Map.GetMapStart();	// "MapTilesStart" takes on the values of "MapStart"
+//	// IMPORTANT!!! -> Map.GetMapStart() returns a pointer, not an object!.... HOORAY!
+//	TileType *Current = &MapTilesStart, *Runner = &MapTilesStart;	// "MapTilesStart" does not hold tile data.
+//	// ^ that block is fine because there are no pointers to "it."
+//register	
+//	int MapArea = Map->Xdis * Map->Ydis;
+//	
+//	int Yloc = -1;
+//
+//	for(int jndex = 1; jndex <= (MapArea); jndex++)
+//	{
+//		TileType *newTile = new TileType;
+//		// create a doubly linked list.
+//		Current->Next = newTile;
+//		newTile->Previous = Current;
+//		newTile->Next = NULL;
+//
+//		Current = Current->Next;
+//		// itoa(index, &Current->tilePiece, MapArea);
+//		Current->x = (jndex - 1) % Map->Xdis;
+//
+//		if(Current->x == 0)
+//			Yloc += 1;
+//
+//		Current->y = Yloc;
+//
+//		Current->n = Current->s = Current->e = Current->w = NULL; // Initialize all Cardinal Directional pointers
+//		Current->ToPlayer = Current->ToMap = NULL;
+//		Current->nextAtt = Current->previousAtt = NULL;
+//		Current->nextItem = Current->previousItem = NULL;
+//		Current->nextCharacter = Current->previousCharacter = NULL;
+//	}
+//
+//	TileType *VerticalRunner = MapTilesStart.Next, *HorizontalRunner = &MapTilesStart;
+//
+//	Current = MapTilesStart.Next;	// set current to the start of the map, instead of the "tag" of the map.
+//	Current->w = Current->n = NULL;
+//
+//	for(int VRindex = 0; VRindex < Map->Xdis; VRindex++)
+//		VerticalRunner = VerticalRunner->Next;
+//
+//	for(int index = 0; index < MapArea; index++)	// "index = 1" helps keep track of where along the map -> the tile "being placed" should be.
+//	{
+//
+//		if( (Current->x + 1) % Map->Xdis != 0)	// if not at the map's right edge.
+//		{
+//			Current->e = Current->Next;
+//
+//		}	// East (e) -> Done.
+//
+//		if( (Current->x + 1) % Map->Xdis != 1) // if not at the map's left edge.
+//		{	
+//			Current->w = Current->Previous;
+//
+//		}	// West (w) -> Done.
+//
+//		if(Current->y + 1 < Map->Ydis)	// if not "placing tiles" on the bottom (s) edge of the map.
+//		{
+//			Current->s = VerticalRunner;
+//
+//			if(VerticalRunner != NULL)
+//				VerticalRunner->n = Current;
+//		}
+//
+//		if( (Current->y + 1) < Map->Ydis)	// if not "placing tiles" on the bottom (s) edge of the map.
+//			VerticalRunner = VerticalRunner->Next;	// move VR along
+//
+//		Current = Current->Next;	// move Current along.
+//	}
+//
+//	Map->Map.ReturnMapStart(MapTilesStart);
+//}
